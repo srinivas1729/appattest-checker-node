@@ -1,0 +1,22 @@
+{
+  "name": "appattest-checker-node",
+  "version": "0.1.0",
+  "description": "Node.JS library to check/verify iOS App Attest attestations",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "author": "Srinivas Visvanathan",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@tsconfig/node-lts": "^20.1.1",
+    "@types/jest": "^29.5.11",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3"
+  }
+}
