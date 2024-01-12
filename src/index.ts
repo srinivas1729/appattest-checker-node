@@ -1,3 +1,5 @@
-export function add(a: number, b: number): number {
-  return a + b;
-}
+export {
+  AppInfo,
+  setAppAttestRootCertificate,
+  verifyAttestation,
+} from './attestation';
