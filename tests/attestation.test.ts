@@ -67,7 +67,6 @@ describe('verifyAttestation', () => {
         rawAttestation,
       ),
     ).toEqual({
-      result: 'pass',
       publicKeyPem: EXPECTED_PUBLIC_KEY_PEM,
       receipt: Buffer.from(EXPECTED_RECEIPT_BASE64, 'base64'),
     });
@@ -82,7 +81,7 @@ describe('verifyAttestation', () => {
         rawAttestation,
       ),
     ).toEqual({
-      result: 'fail_nonce_mismatch',
+      verifyError: 'fail_nonce_mismatch',
     });
   });
 
@@ -95,7 +94,7 @@ describe('verifyAttestation', () => {
         rawAttestation,
       ),
     ).toEqual({
-      result: 'fail_rpId_mismatch',
+      verifyError: 'fail_rpId_mismatch',
     });
   });
 
@@ -108,7 +107,7 @@ describe('verifyAttestation', () => {
         rawAttestation,
       ),
     ).toEqual({
-      result: 'fail_credId_mismatch',
+      verifyError: 'fail_credId_mismatch',
     });
   });
 });
@@ -151,7 +150,7 @@ describe('VerificationStep tests', () => {
     };
 
     test('passes with valid keyId', async () => {
-      expect(await checkCredentialIdPerStep9(testInputs)).toEqual('pass');
+      expect(await checkCredentialIdPerStep9(testInputs)).toBeNull();
     });
 
     test('fails with keyId mismatch', async () => {
@@ -179,7 +178,7 @@ describe('VerificationStep tests', () => {
     };
 
     test('passes if App Attest guid matches', async () => {
-      expect(await checkAAGuidPerStep8(testInputs)).toEqual('pass');
+      expect(await checkAAGuidPerStep8(testInputs)).toBeNull();
     });
 
     test('fails if App Attest guid does not matches', async () => {
@@ -192,7 +191,7 @@ describe('VerificationStep tests', () => {
 
   describe('checkSignCountPerStep7', () => {
     test('passes if signCount is 0', async () => {
-      expect(await checkSignCountPerStep7(testInputs)).toEqual('pass');
+      expect(await checkSignCountPerStep7(testInputs)).toBeNull();
     });
 
     test('fails if signCount is not 0', async () => {
@@ -207,7 +206,7 @@ describe('VerificationStep tests', () => {
 
   describe('checkRPIdPerStep6', () => {
     test('passes if rpId matches sha256 of appId', async () => {
-      expect(await checkRPIdPerStep6(testInputs)).toEqual('pass');
+      expect(await checkRPIdPerStep6(testInputs)).toBeNull();
     });
 
     test('fails if rpId does not match sha256 of appId', async () => {
@@ -223,7 +222,7 @@ describe('VerificationStep tests', () => {
 
   describe('computeAndCheckNoncePerStep2To4', () => {
     test('passes if nonce computed from challenge matches extension value', async () => {
-      expect(await computeAndCheckNoncePerStep2To4(testInputs)).toEqual('pass');
+      expect(await computeAndCheckNoncePerStep2To4(testInputs)).toBeNull();
     });
 
     test('fails if nonce computed from challenge does not match extension value', async () => {
@@ -243,7 +242,7 @@ describe('VerificationStep tests', () => {
 
   describe('checkCertificatesPerStep1', () => {
     test('pass if cert chain can be verified', async () => {
-      expect(await checkCertificatesPerStep1(testInputs)).toEqual('pass');
+      expect(await checkCertificatesPerStep1(testInputs)).toBeNull();
     });
 
     test('fails if cred cert cannot be verified', async () => {

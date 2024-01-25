@@ -24,8 +24,7 @@ export interface VerificationInputs {
   parsedAttestation: ParsedAttestation;
 }
 
-export type VerificationResult =
-  | 'pass'
+export type VerifyAttestationError =
   | 'fail_parsing_attestation'
   | 'fail_credId_len_invalid'
   | 'fail_credId_mismatch'
@@ -37,24 +36,23 @@ export type VerificationResult =
   | 'fail_credCert_verify_failure'
   | 'fail_intermediateCert_verify_failure';
 
-interface SuccessVerifyAttestationResult {
-  result: 'pass';
+export interface VerifyAttestationSuccessResult {
   publicKeyPem: string;
   receipt: Buffer;
 }
 
-interface FailVerifyAttestationResult {
-  result: Exclude<VerificationResult, 'pass'>;
+export interface VerifyAttestationFailureResult {
+  verifyError: VerifyAttestationError;
   errorMessage?: string;
 }
 
-type VerifyAttestationResult =
-  | SuccessVerifyAttestationResult
-  | FailVerifyAttestationResult;
+export type VerifyAttestationResult =
+  | VerifyAttestationSuccessResult
+  | VerifyAttestationFailureResult;
 
 type VerificationStep = (
   inputs: VerificationInputs,
-) => Promise<VerificationResult>;
+) => Promise<VerifyAttestationError | null>;
 
 const STEPS: VerificationStep[] = [
   checkCertificatesPerStep1,
@@ -75,7 +73,7 @@ export async function verifyAttestation(
   const parseResult = await parseAttestation(attestation);
   if (typeof parseResult === 'string') {
     return {
-      result: 'fail_parsing_attestation',
+      verifyError: 'fail_parsing_attestation',
       errorMessage: parseResult,
     };
   }
@@ -87,16 +85,15 @@ export async function verifyAttestation(
   };
 
   for (const step of STEPS) {
-    const result = await step(inputs);
-    if (result !== 'pass') {
+    const error = await step(inputs);
+    if (error !== null) {
       return {
-        result,
+        verifyError: error,
       };
     }
   }
 
   return {
-    result: 'pass',
     publicKeyPem: parseResult.credCert.publicKey.toString(),
     receipt: parseResult.receipt,
   };
@@ -104,7 +101,7 @@ export async function verifyAttestation(
 
 export async function checkCredentialIdPerStep9(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
+): Promise<VerifyAttestationError | null> {
   const authData = inputs.parsedAttestation.authData;
   const credIdLen = authData.subarray(53, 55);
   // Sanity check the length value. It should always be 32 bytes.
@@ -114,51 +111,52 @@ export async function checkCredentialIdPerStep9(
 
   const credId = authData.subarray(55, 87);
   return credId.toString('base64') === inputs.keyId
-    ? 'pass'
+    ? null
     : 'fail_credId_mismatch';
 }
 
 export async function checkAAGuidPerStep8(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
+): Promise<VerifyAttestationError | null> {
   const aaGuid = inputs.parsedAttestation.authData.subarray(37, 53).toString();
   const expectedGuid = inputs.appInfo.developmentEnv
     ? 'appattestdevelop'
     : 'appattest';
-  return aaGuid === expectedGuid ? 'pass' : 'fail_aaguid_mismatch';
+  return aaGuid === expectedGuid ? null : 'fail_aaguid_mismatch';
 }
 
 export async function checkSignCountPerStep7(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
+): Promise<VerifyAttestationError | null> {
   const counter = inputs.parsedAttestation.authData.subarray(33, 37);
   return counter.equals(Buffer.from([0, 0, 0, 0]))
-    ? 'pass'
+    ? null
     : 'fail_signCount_nonZero';
 }
 
 export async function checkRPIdPerStep6(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
+): Promise<VerifyAttestationError | null> {
   const rpId = inputs.parsedAttestation.authData.subarray(0, 32);
   const appIdHash = await getSHA256(Buffer.from(inputs.appInfo.appId));
-  return rpId.equals(appIdHash) ? 'pass' : 'fail_rpId_mismatch';
+  return rpId.equals(appIdHash) ? null : 'fail_rpId_mismatch';
 }
 
 export async function checkKeyIdPerStep5(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
-  const publicKeyHash = await getSHA256(
+): Promise<VerifyAttestationError | null> {
+  // const publicKeyHash =
+  await getSHA256(
     Buffer.from(inputs.parsedAttestation.credCert.publicKey.rawData),
   );
-  console.log(
-    `publicKeyHash: ${publicKeyHash.toString('base64')}, keyId: ${
-      inputs.keyId
-    }`,
-  );
+  // console.log(
+  //   `publicKeyHash: ${publicKeyHash.toString('base64')}, keyId: ${
+  //     inputs.keyId
+  //   }`,
+  // );
   // TODO: Always pass for now. Haven't figured out how to SHA256 the key correctly
   // yet. We however compare the keyId in step 9 too.
-  return 'pass';
+  return null;
 }
 
 let NONCE_EXTENSION_OID = '1.2.840.113635.100.8.2';
@@ -169,7 +167,7 @@ export function setNonceExtensionOID(oid: string) {
 
 export async function computeAndCheckNoncePerStep2To4(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
+): Promise<VerifyAttestationError | null> {
   const attestation = inputs.parsedAttestation;
 
   const clientDataHash = await getSHA256(inputs.challenge);
@@ -182,7 +180,7 @@ export async function computeAndCheckNoncePerStep2To4(
   }
   const extAsnString = ext.toString('asn');
   const expectedSuffix = `OCTET STRING : ${nonce.toString('hex')}`;
-  return extAsnString.endsWith(expectedSuffix) ? 'pass' : 'fail_nonce_mismatch';
+  return extAsnString.endsWith(expectedSuffix) ? null : 'fail_nonce_mismatch';
 }
 
 const DEFAULT_APPATTEST_ROOT_CERT_PEM = `
@@ -212,7 +210,7 @@ export function setAppAttestRootCertificate(rootCertPem: string | null) {
 
 export async function checkCertificatesPerStep1(
   inputs: VerificationInputs,
-): Promise<VerificationResult> {
+): Promise<VerifyAttestationError | null> {
   const attestation = inputs.parsedAttestation;
 
   // TODO: date also available as input.
@@ -234,7 +232,7 @@ export async function checkCertificatesPerStep1(
   if (!intermediateCertVerified) {
     return 'fail_intermediateCert_verify_failure';
   }
-  return 'pass';
+  return null;
 }
 
 export async function parseAttestation(
