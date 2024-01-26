@@ -5,11 +5,22 @@ import { webcrypto } from 'crypto';
 
 import { getSHA256 } from './utils';
 
+/**
+ * iOS App information.
+ */
 export interface AppInfo {
+  /**
+   * For apps, this is of the form: <team-id (10-digit)>.<bundle-id>. See docs
+   * regarding App Clip's.
+   */
   appId: string;
+  /**
+   * Whether this is for development build or production build.
+   */
   developmentEnv: boolean;
 }
 
+/** @internal */
 export interface ParsedAttestation {
   credCert: X509Certificate;
   intermediateCert: X509Certificate;
@@ -17,6 +28,7 @@ export interface ParsedAttestation {
   authData: Buffer;
 }
 
+/** @internal */
 export interface VerificationInputs {
   appInfo: AppInfo;
   keyId: string;
@@ -24,6 +36,7 @@ export interface VerificationInputs {
   parsedAttestation: ParsedAttestation;
 }
 
+/** Possible errors when verifying an Attestation. */
 export type VerifyAttestationError =
   | 'fail_parsing_attestation'
   | 'fail_credId_len_invalid'
@@ -36,16 +49,21 @@ export type VerifyAttestationError =
   | 'fail_credCert_verify_failure'
   | 'fail_intermediateCert_verify_failure';
 
+/**
+ * Information to be persisted if Attestation was verified successfully.
+ */
 export interface VerifyAttestationSuccessResult {
   publicKeyPem: string;
   receipt: Buffer;
 }
 
+/** Error information if Attestation could not be verified. */
 export interface VerifyAttestationFailureResult {
   verifyError: VerifyAttestationError;
   errorMessage?: string;
 }
 
+/** Result produced by {@link verifyAttestation} */
 export type VerifyAttestationResult =
   | VerifyAttestationSuccessResult
   | VerifyAttestationFailureResult;
@@ -64,6 +82,17 @@ const STEPS: VerificationStep[] = [
   checkCredentialIdPerStep9,
 ];
 
+/**
+ * Verify Attestation object generated on iOS device using DCAppAttestService per
+ * steps {@link https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server#3576643 | here}.
+ *
+ * @param appInfo App that Attestation was generated for. See {@link AppInfo}.
+ * @param keyId Public key identifier from device that Attestation was generated for.
+ * @param challenge One time challenge used to generated Attestation.
+ * @param attestation Raw attestation data generated during Key attestation.
+ * @returns Result object containing public-key and receipt if verification was successful or
+ *    error information if verification failed.
+ */
 export async function verifyAttestation(
   appInfo: AppInfo,
   keyId: string,
@@ -99,6 +128,22 @@ export async function verifyAttestation(
   };
 }
 
+/**
+ * Set the Apple AppAttest Root Certificate to use during {@link verifyAttestation}.
+ *
+ * @remarks
+ * This API is optional and by default the Certificate bundled with this library will be used.
+ *
+ * @param rootCertPem PEM formatted AppAttest Root Certificate. If null is provided, the
+ * default Certificate bundled with this library will be used instead.
+ */
+export function setAppAttestRootCertificate(rootCertPem: string | null) {
+  APPATTEST_ROOT_CERT = new X509Certificate(
+    rootCertPem ?? DEFAULT_APPATTEST_ROOT_CERT_PEM,
+  );
+}
+
+/** @internal */
 export async function checkCredentialIdPerStep9(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -115,6 +160,7 @@ export async function checkCredentialIdPerStep9(
     : 'fail_credId_mismatch';
 }
 
+/** @internal */
 export async function checkAAGuidPerStep8(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -125,6 +171,7 @@ export async function checkAAGuidPerStep8(
   return aaGuid === expectedGuid ? null : 'fail_aaguid_mismatch';
 }
 
+/** @internal */
 export async function checkSignCountPerStep7(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -134,6 +181,7 @@ export async function checkSignCountPerStep7(
     : 'fail_signCount_nonZero';
 }
 
+/** @internal */
 export async function checkRPIdPerStep6(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -142,6 +190,7 @@ export async function checkRPIdPerStep6(
   return rpId.equals(appIdHash) ? null : 'fail_rpId_mismatch';
 }
 
+/** @internal */
 export async function checkKeyIdPerStep5(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -161,10 +210,12 @@ export async function checkKeyIdPerStep5(
 
 let NONCE_EXTENSION_OID = '1.2.840.113635.100.8.2';
 
+/** @internal */
 export function setNonceExtensionOID(oid: string) {
   NONCE_EXTENSION_OID = oid;
 }
 
+/** @internal */
 export async function computeAndCheckNoncePerStep2To4(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -201,13 +252,7 @@ oyFraWVIyd/dganmrduC1bmTBGwD
 `;
 let APPATTEST_ROOT_CERT = new X509Certificate(DEFAULT_APPATTEST_ROOT_CERT_PEM);
 
-// TODO: doc + throws error if cert is invalid.
-export function setAppAttestRootCertificate(rootCertPem: string | null) {
-  APPATTEST_ROOT_CERT = new X509Certificate(
-    rootCertPem ?? DEFAULT_APPATTEST_ROOT_CERT_PEM,
-  );
-}
-
+/** @internal */
 export async function checkCertificatesPerStep1(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
@@ -235,6 +280,7 @@ export async function checkCertificatesPerStep1(
   return null;
 }
 
+/** @internal */
 export async function parseAttestation(
   attestation: Buffer,
 ): Promise<ParsedAttestation | string> {
