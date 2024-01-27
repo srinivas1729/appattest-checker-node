@@ -3,7 +3,7 @@ import cbor from 'cbor';
 import { X509Certificate } from '@peculiar/x509';
 import { webcrypto } from 'crypto';
 
-import { getSHA256 } from './utils';
+import { getRPIdHash, getSHA256, getSignCount } from './utils';
 
 /**
  * iOS App information.
@@ -85,6 +85,9 @@ const STEPS: VerificationStep[] = [
 /**
  * Verify Attestation object generated on iOS device using DCAppAttestService per
  * steps {@link https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server#3576643 | here}.
+ *
+ * @remark On successful verification, the public-key PEM and receipt should be persisted using
+ * some device Id for future lookup.
  *
  * @param appInfo App that Attestation was generated for. See {@link AppInfo}.
  * @param keyId Public key identifier from device that Attestation was generated for.
@@ -175,17 +178,15 @@ export async function checkAAGuidPerStep8(
 export async function checkSignCountPerStep7(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
-  const counter = inputs.parsedAttestation.authData.subarray(33, 37);
-  return counter.equals(Buffer.from([0, 0, 0, 0]))
-    ? null
-    : 'fail_signCount_nonZero';
+  const counter = getSignCount(inputs.parsedAttestation.authData);
+  return counter === 0 ? null : 'fail_signCount_nonZero';
 }
 
 /** @internal */
 export async function checkRPIdPerStep6(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
-  const rpId = inputs.parsedAttestation.authData.subarray(0, 32);
+  const rpId = getRPIdHash(inputs.parsedAttestation.authData);
   const appIdHash = await getSHA256(Buffer.from(inputs.appInfo.appId));
   return rpId.equals(appIdHash) ? null : 'fail_rpId_mismatch';
 }
@@ -302,6 +303,7 @@ export async function parseAttestation(
   if (!(authData instanceof Buffer)) {
     return 'Invalid `authData` field in Attestation';
   }
+  // TODO: check length of authData for future parsing.
 
   const { x5c, receipt } = attStmt;
   if (
