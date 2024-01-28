@@ -25,7 +25,9 @@
   },
   "dependencies": {
     "@peculiar/x509": "^1.9.6",
+    "@types/json-stable-stringify": "^1.0.36",
     "@types/node": "^20.11.0",
-    "cbor": "^9.0.1"
+    "cbor": "^9.0.1",
+    "json-stable-stringify": "^1.1.1"
   }
 }
