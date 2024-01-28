@@ -4,7 +4,11 @@ import cbor from 'cbor';
 import { getRPIdHash, getSHA256, getSignCount } from './utils';
 
 // TODO: more error types.
-export type VerifyAssertionError = 'fail';
+export type VerifyAssertionError =
+  | 'fail_parsing_assertion'
+  | 'fail_rpId_mismatch'
+  | 'fail_invalid_publicKey'
+  | 'fail_signature_verification';
 
 export interface VerifyAssertionSuccessResult {
   signCount: number;
@@ -12,6 +16,7 @@ export interface VerifyAssertionSuccessResult {
 
 export interface VerifyAssertionFailureResult {
   verifyError: VerifyAssertionError;
+  errorMessage?: string;
 }
 
 type VerifyAssertionResult =
@@ -23,7 +28,7 @@ export interface ParsedAssertion {
   authData: Buffer;
 }
 
-interface VerifyAssertionInputs {
+export interface VerifyAssertionInputs {
   clientDataHash: Buffer;
   publicKeyPem: string;
   appId: string;
@@ -47,7 +52,7 @@ export async function verifyAssertion(
 ): Promise<VerifyAssertionResult> {
   const parseResult = await parseAssertion(assertion);
   if (typeof parseResult === 'string') {
-    return { verifyError: 'fail' };
+    return { verifyError: 'fail_parsing_assertion', errorMessage: parseResult };
   }
 
   const inputs = {
@@ -76,7 +81,7 @@ export async function verifyRPIdPerStep4(
 ): Promise<VerifyAssertionError | null> {
   const rpIdHash = getRPIdHash(inputs.parsedAssertion.authData);
   const appIdHash = await getSHA256(Buffer.from(inputs.appId));
-  return rpIdHash.equals(appIdHash) ? null : 'fail';
+  return rpIdHash.equals(appIdHash) ? null : 'fail_rpId_mismatch';
 }
 
 export async function verifySignaturePerStep1To3(
@@ -88,15 +93,19 @@ export async function verifySignaturePerStep1To3(
   ]);
   const nonce = await getSHA256(noncePrep);
 
-  // TODO: error cases!
-  const publicKey = createPublicKey(inputs.publicKeyPem);
+  let publicKey;
+  try {
+    publicKey = createPublicKey(inputs.publicKeyPem);
+  } catch (e) {
+    return 'fail_invalid_publicKey';
+  }
   const verifier = createVerify('RSA-SHA256');
   verifier.update(nonce);
   const verified = verifier.verify(publicKey, inputs.parsedAssertion.signature);
-  return verified ? null : 'fail';
+  return verified ? null : 'fail_signature_verification';
 }
 
-async function parseAssertion(
+export async function parseAssertion(
   assertion: Buffer,
 ): Promise<ParsedAssertion | string> {
   try {
