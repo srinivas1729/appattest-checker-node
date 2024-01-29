@@ -3,17 +3,23 @@ import { createPublicKey, createVerify } from 'crypto';
 import cbor from 'cbor';
 import { getRPIdHash, getSHA256, getSignCount } from './utils';
 
-// TODO: more error types.
+/** Possible errors when verifying an Assertion. */
 export type VerifyAssertionError =
   | 'fail_parsing_assertion'
   | 'fail_rpId_mismatch'
   | 'fail_invalid_publicKey'
   | 'fail_signature_verification';
 
+/**
+ * Result when Assertion is verified successfully.
+ */
 export interface VerifyAssertionSuccessResult {
   signCount: number;
 }
 
+/**
+ * Result when Assertion cannot be verified.
+ */
 export interface VerifyAssertionFailureResult {
   verifyError: VerifyAssertionError;
   errorMessage?: string;
@@ -23,11 +29,13 @@ type VerifyAssertionResult =
   | VerifyAssertionSuccessResult
   | VerifyAssertionFailureResult;
 
+/** @internal */
 export interface ParsedAssertion {
   signature: Buffer;
   authData: Buffer;
 }
 
+/** @internal */
 export interface VerifyAssertionInputs {
   clientDataHash: Buffer;
   publicKeyPem: string;
@@ -44,6 +52,26 @@ const STEPS: VerificationStep[] = [
   verifyRPIdPerStep4,
 ];
 
+/**
+ * Verify an Assertion generated on an iOS device using DCAppAttestService per steps 1-4
+ * {@link https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server#3576644 | here}.
+ *
+ * @remark This code does not verify that any challenge inluded in clientDataHash is valid. Calling
+ * code should do that. Also, on successful verification, the signCount from the Assertion is
+ * returned. Calling code should check that it exceeds any previous persisted signCount and persist
+ * the returned value. These two points are mentioned in Steps 5 & 6 from steps above.
+ *
+ * @remark Ensure that clientDataHash is computed from the same request that was used by the client
+ * for assertion. Any formatting changes could result in issues.
+ *
+ * @param clientDataHash SHA256 of the client data (request).
+ * @param publicKeyPem Public Key of the key pair from the device.
+ * @param appId App Id that generated the assertion.
+ * @param assertion Assertion bytes sent up from the device; derived on device by signing
+ *    clientDataHash with private key on the device.
+ * @returns Result object containing signCount if assertion was verified or error if it was not
+ *    verified.
+ */
 export async function verifyAssertion(
   clientDataHash: Buffer,
   publicKeyPem: string,
@@ -76,6 +104,7 @@ export async function verifyAssertion(
   };
 }
 
+/** @internal */
 export async function verifyRPIdPerStep4(
   inputs: VerifyAssertionInputs,
 ): Promise<VerifyAssertionError | null> {
@@ -84,6 +113,7 @@ export async function verifyRPIdPerStep4(
   return rpIdHash.equals(appIdHash) ? null : 'fail_rpId_mismatch';
 }
 
+/** @internal */
 export async function verifySignaturePerStep1To3(
   inputs: VerifyAssertionInputs,
 ): Promise<VerifyAssertionError | null> {
@@ -105,6 +135,7 @@ export async function verifySignaturePerStep1To3(
   return verified ? null : 'fail_signature_verification';
 }
 
+/** @internal */
 export async function parseAssertion(
   assertion: Buffer,
 ): Promise<ParsedAssertion | string> {

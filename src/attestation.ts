@@ -50,10 +50,15 @@ export type VerifyAttestationError =
   | 'fail_intermediateCert_verify_failure';
 
 /**
- * Information to be persisted if Attestation was verified successfully.
+ * Information returned if Attestation was verified successfully.
+ * 
+ * @remark These fields should be persisted for this device (i.e. using some device-id) and will
+ * needed to retrieved to check Assertions later.
  */
 export interface VerifyAttestationSuccessResult {
+  /** Public key that can be used to verify Assertions from a device */
   publicKeyPem: string;
+  /** Receipt that can be used assess Fraud risk as described {@link https://developer.apple.com/documentation/devicecheck/assessing_fraud_risk | here} */
   receipt: Buffer;
 }
 
