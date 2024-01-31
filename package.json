@@ -1,5 +1,5 @@
 {
-  "name": "@srinivas1729/appattest-checker-node",
+  "name": "appattest-checker-node",
   "version": "0.5.0",
   "description": "Node.JS library to check/verify iOS App Attest attestations & assertions",
   "author": "Srinivas Visvanathan",
