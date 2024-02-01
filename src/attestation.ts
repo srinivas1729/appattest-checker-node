@@ -51,7 +51,7 @@ export type VerifyAttestationError =
 
 /**
  * Information returned if Attestation was verified successfully.
- * 
+ *
  * @remark These fields should be persisted for this device (i.e. using some device-id) and will
  * needed to retrieved to check Assertions later.
  */
@@ -150,6 +150,8 @@ export function setAppAttestRootCertificate(rootCertPem: string | null) {
     rootCertPem ?? DEFAULT_APPATTEST_ROOT_CERT_PEM,
   );
 }
+// Need to read upto credId field at offset 87.
+const MIN_REQUIRED_ATTESTATION_BYTES = 88;
 
 /** @internal */
 export async function checkCredentialIdPerStep9(
@@ -305,10 +307,15 @@ export async function parseAttestation(
   if (fmt !== 'apple-appattest') {
     return 'Invalid `fmt` in Attestation';
   }
-  if (!(authData instanceof Buffer)) {
-    return 'Invalid `authData` field in Attestation';
+  if (typeof attStmt !== 'object') {
+    return 'Invalid `attStmt` in Attestation';
   }
-  // TODO: check length of authData for future parsing.
+  if (!(authData instanceof Buffer)) {
+    return 'Invalid `authData` in Attestation';
+  }
+  if (authData.length < MIN_REQUIRED_ATTESTATION_BYTES) {
+    return 'authData has < 88 bytes';
+  }
 
   const { x5c, receipt } = attStmt;
   if (
@@ -331,7 +338,6 @@ export async function parseAttestation(
       authData,
     };
   } catch (e) {
-    console.error('Unexpected error when parsing attestation!'); // TODO: stack?
     return 'Unable to parse X509 certificates from Attestation';
   }
 }

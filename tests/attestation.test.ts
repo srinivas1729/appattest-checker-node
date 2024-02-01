@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import cbor from 'cbor';
 import { randomUUID } from 'crypto';
 
 import {
@@ -45,6 +46,20 @@ describe('verifyAttestation', () => {
     expect(result).toEqual({
       publicKeyPem: EXPECTED_PUBLIC_KEY_PEM,
       receipt: Buffer.from(EXPECTED_RECEIPT_BASE64, 'base64'),
+    });
+  });
+
+  test('fails if attestation cannot be parsed', async () => {
+    expect(
+      await verifyAttestation(
+        TEST_APP_INFO,
+        KEY_ID,
+        parseUUIDV4(randomUUID()),
+        Buffer.from('junk attestation data'),
+      ),
+    ).toEqual({
+      verifyError: 'fail_parsing_attestation',
+      errorMessage: 'Unable to parse CBOR contents from Attesation',
     });
   });
 
@@ -236,4 +251,106 @@ describe('VerificationStep tests', () => {
       setAppAttestRootCertificate(null);
     });
   });
+});
+
+describe('parseAttestation', () => {
+  const CASES: [unknown, string][] = [
+    // fmt field missing.
+    [{}, 'Invalid `fmt` in Attestation'],
+    // fmt does not match
+    [{ fmt: 'random' }, 'Invalid `fmt` in Attestation'],
+    // attStmt missing.
+    [{ fmt: 'apple-appattest' }, 'Invalid `attStmt` in Attestation'],
+    // attStmt is not object.
+    [
+      { fmt: 'apple-appattest', attStmt: 'junk' },
+      'Invalid `attStmt` in Attestation',
+    ],
+    // authData missing.
+    [
+      { fmt: 'apple-appattest', attStmt: {} },
+      'Invalid `authData` in Attestation',
+    ],
+    // authData is not Buffer.
+    [
+      { fmt: 'apple-appattest', attStmt: {}, authData: 'junk' },
+      'Invalid `authData` in Attestation',
+    ],
+    // authData is not long enough.
+    [
+      { fmt: 'apple-appattest', attStmt: {}, authData: Buffer.alloc(87) },
+      'authData has < 88 bytes',
+    ],
+    // Missing x5c.
+    [
+      { fmt: 'apple-appattest', authData: Buffer.alloc(88), attStmt: {} },
+      'Invalid `x5c` field in Attestation',
+    ],
+    // Invalid x5c, not array
+    [
+      {
+        fmt: 'apple-appattest',
+        authData: Buffer.alloc(88),
+        attStmt: { x5c: 'junk' },
+      },
+      'Invalid `x5c` field in Attestation',
+    ],
+    // Invalid x5c, not array of Buffers.
+    [
+      {
+        fmt: 'apple-appattest',
+        authData: Buffer.alloc(88),
+        attStmt: { x5c: ['invalid', 'array'] },
+      },
+      'Invalid `x5c` field in Attestation',
+    ],
+    // Invalid x5c, only single Buffer.
+    [
+      {
+        fmt: 'apple-appattest',
+        authData: Buffer.alloc(88),
+        attStmt: { x5c: [Buffer.alloc(25)] },
+      },
+      'Invalid `x5c` field in Attestation',
+    ],
+    // Missing receipt
+    [
+      {
+        fmt: 'apple-appattest',
+        authData: Buffer.alloc(88),
+        attStmt: { x5c: [Buffer.alloc(25), Buffer.alloc(25)] },
+      },
+      'Invalid `receipt` field in Attestation',
+    ],
+    // Invalid receipt type
+    [
+      {
+        fmt: 'apple-appattest',
+        authData: Buffer.alloc(88),
+        attStmt: { x5c: [Buffer.alloc(25), Buffer.alloc(25)], receipt: 'junk' },
+      },
+      'Invalid `receipt` field in Attestation',
+    ],
+    // Cannot parse first x5c
+    [
+      {
+        fmt: 'apple-appattest',
+        authData: Buffer.alloc(88),
+        attStmt: {
+          x5c: [Buffer.alloc(25), Buffer.alloc(25)],
+          receipt: Buffer.alloc(8),
+        },
+      },
+      'Unable to parse X509 certificates from Attestation',
+    ],
+  ];
+
+  test.each(CASES)(
+    'Fails on %p with error: %p',
+    async (attestationObj, expectedError) => {
+      expect(await parseAttestation(cbor.encode(attestationObj))).toEqual(
+        expectedError,
+      );
+    },
+  );
 });
