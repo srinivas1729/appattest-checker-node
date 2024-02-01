@@ -114,7 +114,7 @@ describe('VerificationStep tests', () => {
       throw new Error('ParsedAttestation expected!');
     }
     testInputs = {
-      appInfo: TEST_APP_INFO,
+      appInfo: { ...TEST_APP_INFO },
       keyId: KEY_ID,
       challenge: parseUUIDV4(KEY_ATTESTATION_CHALLENGE_STR),
       parsedAttestation: parseResult,
@@ -170,6 +170,14 @@ describe('VerificationStep tests', () => {
 
     test('passes if App Attest guid matches', async () => {
       expect(await checkAAGuidPerStep8(testInputs)).toBeNull();
+    });
+
+    test('passes if prod App Attest guid is expected', async () => {
+      updateAAGuidForProd();
+      testInputs.appInfo.developmentEnv = false;
+      expect(await checkAAGuidPerStep8(testInputs)).toEqual(
+        'fail_aaguid_mismatch',
+      );
     });
 
     test('fails if App Attest guid does not matches', async () => {
