@@ -1,3 +1,4 @@
+import cbor from 'cbor';
 import stringify from 'json-stable-stringify';
 
 import {
@@ -33,6 +34,19 @@ describe('verifyAssertion', () => {
       requestAssertion,
     );
     expect(verifyResult).toEqual({ signCount: 1 });
+  });
+
+  test('fails if assertion parsing fails', async () => {
+    const verifyResult = await verifyAssertion(
+      clientDataHash,
+      EXPECTED_PUBLIC_KEY_PEM,
+      TEST_APP_INFO.appId,
+      Buffer.from('junk data'),
+    );
+    expect(verifyResult).toEqual({
+      verifyError: 'fail_parsing_assertion',
+      errorMessage: 'Unable to parse CBOR contents from Assertion',
+    });
   });
 
   test('fails and returns error if any step fails', async () => {
@@ -98,4 +112,40 @@ describe('VerificationStep tests', () => {
       );
     });
   });
+});
+
+describe('parseAssertion', () => {
+  const CASES: [unknown, string][] = [
+    // No signature.
+    [{ foo: 'bar' }, 'Invalid `signature` field in Assertion'],
+    // signature not a Buffer.
+    [{ signature: 'hello' }, 'Invalid `signature` field in Assertion'],
+    // signature present, but no authenticatorData.
+    [
+      { signature: Buffer.from('signature') },
+      'Invalid `authenticatorData` field in Assertion',
+    ],
+    // authenticatorData is not a Buffer.
+    [
+      { signature: Buffer.from('signature') },
+      'Invalid `authenticatorData` field in Assertion',
+    ],
+    // authenticatorData is not a Buffer.
+    [
+      {
+        signature: Buffer.from('signature'),
+        authenticatorData: Buffer.alloc(33),
+      },
+      'authenticatorData has < 34 bytes',
+    ],
+  ];
+
+  test.each(CASES)(
+    'Fails on %p with error: %p',
+    async (assertionObj, expectedError) => {
+      expect(await parseAssertion(cbor.encode(assertionObj))).toEqual(
+        expectedError,
+      );
+    },
+  );
 });

@@ -135,6 +135,9 @@ export async function verifySignaturePerStep1To3(
   return verified ? null : 'fail_signature_verification';
 }
 
+// Need to read upto signCount field at offset 33.
+const MIN_REQUIRED_ASSERTION_BYTES = 34;
+
 /** @internal */
 export async function parseAssertion(
   assertion: Buffer,
@@ -148,7 +151,9 @@ export async function parseAssertion(
     if (!(authenticatorData instanceof Buffer)) {
       return 'Invalid `authenticatorData` field in Assertion';
     }
-    // TODO: check authenticatorData bytelength.
+    if (authenticatorData.length < MIN_REQUIRED_ASSERTION_BYTES) {
+      return 'authenticatorData has < 34 bytes';
+    }
     return {
       signature,
       authData: authenticatorData,
