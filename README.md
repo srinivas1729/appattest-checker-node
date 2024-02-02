@@ -38,7 +38,7 @@ API on the device ([reference](https://developer.apple.com/documentation/devicec
 The `challenge` should be the random value provided by the server to the client to generate the
 Attestation. `keyId` is the identifier of the public key generated on the device.
 
-```
+```typescript
   const result = await verifyAttestation(
     {
       appId: '<team-id>.<bundle-id>',
@@ -69,7 +69,7 @@ App Attest Certificate (from [here](https://www.apple.com/certificateauthority/p
 If you want to specify a custom Root certificate to use (e.g. because the library's copy is stale),
 use the following API before invoking `verifyAttestation`:
 
-```
+```typescript
   setAppAttestRootCertificate(CUSTOM_ROOT_CERTIFICATE_IN_PEM_FORMAT);
 ```
 
@@ -81,7 +81,7 @@ The app should include Assertions for all important / high value requests (e.g. 
 high value request is missing an Assertion, the server should fail the request. Also if an
 Assertion is present, the server should verify it as shown below or fail the request.
 
-```
+```typescript
   const clientDataHash = // SHA-256 of request contents including challenge provided to client.
 
   // Check that challenge in request matches challenge issued by server
