@@ -14,6 +14,7 @@ import {
   VerificationInputs,
   setAppAttestRootCertificate,
   verifyAttestation,
+  checkKeyIdPerStep5,
 } from '../src/attestation';
 import { getSHA256, parseUUIDV4 } from '../src/utils';
 import {
@@ -98,7 +99,7 @@ describe('verifyAttestation', () => {
         rawAttestation,
       ),
     ).toEqual({
-      verifyError: 'fail_credId_mismatch',
+      verifyError: 'fail_keyId_mismatch',
     });
   });
 });
@@ -144,7 +145,7 @@ describe('VerificationStep tests', () => {
       expect(await checkCredentialIdPerStep9(testInputs)).toBeNull();
     });
 
-    test('fails with keyId mismatch', async () => {
+    test('fails with credId mismatch', async () => {
       const fakeKeyId = Buffer.from(KEY_ID, 'base64');
       fakeKeyId[0] ^= 0xff;
       updateCredId(fakeKeyId.toString('base64'));
@@ -216,6 +217,19 @@ describe('VerificationStep tests', () => {
       }
       fakeAppIdHash.copy(testInputs.parsedAttestation.authData);
       expect(await checkRPIdPerStep6(testInputs)).toEqual('fail_rpId_mismatch');
+    });
+  });
+
+  describe('checkKeyIdPerStep5', () => {
+    test('passes if keyId matches sha256 of public key params', async () => {
+      expect(await checkKeyIdPerStep5(testInputs)).toBeNull();
+    });
+
+    test('fails if keyId computed from public key params does not match', async () => {
+      testInputs.parsedAttestation.credCert = WEBAUTHN_ROOT_CERT;
+      expect(await checkKeyIdPerStep5(testInputs)).toEqual(
+        'fail_keyId_mismatch',
+      );
     });
   });
 

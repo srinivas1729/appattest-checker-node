@@ -44,6 +44,7 @@ export type VerifyAttestationError =
   | 'fail_aaguid_mismatch'
   | 'fail_signCount_nonZero'
   | 'fail_rpId_mismatch'
+  | 'fail_keyId_mismatch'
   | 'fail_nonce_missing'
   | 'fail_nonce_mismatch'
   | 'fail_credCert_verify_failure'
@@ -202,18 +203,15 @@ export async function checkRPIdPerStep6(
 export async function checkKeyIdPerStep5(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
-  // const publicKeyHash =
-  await getSHA256(
-    Buffer.from(inputs.parsedAttestation.credCert.publicKey.rawData),
-  );
-  // console.log(
-  //   `publicKeyHash: ${publicKeyHash.toString('base64')}, keyId: ${
-  //     inputs.keyId
-  //   }`,
-  // );
-  // TODO: Always pass for now. Haven't figured out how to SHA256 the key correctly
-  // yet. We however compare the keyId in step 9 too.
-  return null;
+  // rawData is the DER encoded raw data of the public key. Extra last 65 bytes.
+  // They will contain the public-key params: [0x04, key.x, key.y]. Compute hash over that.
+  // Reference/credit: github.com/srinivas1729/appattest-checker-node/issues/1
+  const publicKeyParam =
+    inputs.parsedAttestation.credCert.publicKey.rawData.slice(-65);
+  const publicKeyHash = await getSHA256(Buffer.from(publicKeyParam));
+  return publicKeyHash.toString('base64') === inputs.keyId
+    ? null
+    : 'fail_keyId_mismatch';
 }
 
 let NONCE_EXTENSION_OID = '1.2.840.113635.100.8.2';
