@@ -1,6 +1,6 @@
 {
   "name": "appattest-checker-node",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Node.JS library to check/verify iOS App Attest attestations & assertions",
   "author": "Srinivas Visvanathan",
   "license": "Apache-2.0",
