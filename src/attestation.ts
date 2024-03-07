@@ -175,7 +175,12 @@ export async function checkCredentialIdPerStep9(
 export async function checkAAGuidPerStep8(
   inputs: VerificationInputs,
 ): Promise<VerifyAttestationError | null> {
-  const aaGuid = inputs.parsedAttestation.authData.subarray(37, 53).toString();
+  // In development env, bytes [37..46) will contain 'appattestdevelop'
+  // In prod env, bytes [37..46) will contain 'appattest'
+  const endIndex = inputs.appInfo.developmentEnv ? 53 : 46;
+  const aaGuid = inputs.parsedAttestation.authData
+    .subarray(37, endIndex)
+    .toString();
   const expectedGuid = inputs.appInfo.developmentEnv
     ? 'appattestdevelop'
     : 'appattest';

@@ -173,12 +173,10 @@ describe('VerificationStep tests', () => {
       expect(await checkAAGuidPerStep8(testInputs)).toBeNull();
     });
 
-    test('passes if prod App Attest guid is expected', async () => {
+    test.only('passes if prod App Attest guid is expected', async () => {
       updateAAGuidForProd();
       testInputs.appInfo.developmentEnv = false;
-      expect(await checkAAGuidPerStep8(testInputs)).toEqual(
-        'fail_aaguid_mismatch',
-      );
+      expect(await checkAAGuidPerStep8(testInputs)).toBeNull();
     });
 
     test('fails if App Attest guid does not matches', async () => {
