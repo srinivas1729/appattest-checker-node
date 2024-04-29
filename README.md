@@ -1,6 +1,6 @@
 # Apple AppAttest Checker for Node.js
 
-_app-attest-checker_ is a [Node.js](https://en.wikipedia.org/wiki/Node.js) library to check
+`app-attest-checker` is a [Node.js](https://en.wikipedia.org/wiki/Node.js) library to check
 Attestation and Assertion objects generated on iOS devices. It can be used in your Node.js
 based server to cryptographically check that requests received in your backend are from
 legitimate versions of your app, running on actual iOS devices.
@@ -20,6 +20,17 @@ Background:
    came from a a legitimate app/device using another API from this library to check the Assertion.
 
 This library verifies Attestations and Assertions per steps provided in App Attest [docs](https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server).
+
+Related repos:
+
+* [`react-native-ios-appattest`](https://github.com/srinivas1729/react-native-ios-appattest):
+  React native library that wraps iOS App Attest API's. It can be used to
+  generate Attestations and Assertions on a device.
+* [`hello-attestation-server-node`](https://github.com/srinivas1729/hello-attestation-server-node):
+  Example API server that uses this library and provides an API that is guarded
+  using Client Attestation.
+* [`RNHelloAttestationClient`](https://github.com/srinivas1729/RNHelloAttestationClient):
+  Example React Native app that makes Attested requests against above server.
 
 ## Consuming the library
 
